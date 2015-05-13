@@ -106,15 +106,15 @@ void SendGrass(int grasslength)
   GPRS.println("AT+CGATT?");
   delay(100);
 // ************************************* THIS IS THE APN
-  GPRS.println("AT+SAPBR=3,1,\"APN\",\"vodafone\"");//setting the APN
+  GPRS.println("AT+SAPBR=3,1,\"APN\",\"internet\"");//setting the APN
   ShowSerialData();
   delay(1000);
 
-  GPRS.println("AT+SAPBR=3,1,\"USER\",\"\"");//setting the APN Username (if required)
+  GPRS.println("AT+SAPBR=3,1,\"USER\",\web"\"");//setting the APN Username (if required)
   ShowSerialData();
   delay(1000);
 
-  GPRS.println("AT+SAPBR=3,1,\"PWD\",\"\"");//setting the APN Password (if required)
+  GPRS.println("AT+SAPBR=3,1,\"PWD\",\web"\"");//setting the APN Password (if required)
   ShowSerialData();
   delay(1000);
 
