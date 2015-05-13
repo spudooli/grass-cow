@@ -1,0 +1,227 @@
+// Grass Cow V1.1
+// Dave Cooper - http://www.spudooli.com  
+
+#include <SoftwareSerial.h>
+
+//Serial Relay - Arduino will patch a 
+//serial link between the computer and the GPRS Shield
+//at 19200 bps 8-N-1
+//Computer is connected to Hardware UART
+//GPRS Shield is connected to the Software UART 
+SoftwareSerial GPRS(7, 8);
+
+unsigned char buffer[64];  // buffer array for data recieve over serial port
+int count=0;               // counter for buffer array 
+String msg = String("");   // SMS message
+
+long interval = 30000;           
+long previousMillis = 0; 
+
+
+void setup()
+{
+  GPRS.begin(19200);               // the GPRS baud rate   
+  Serial.begin(19200);             // the Serial port of Arduino baud rate.
+
+  // Power up the GPRS Shield
+  pinMode( 9, OUTPUT );
+  digitalWrite( 9, HIGH );  
+
+
+  // Warm up the GPRS shield
+  GPRS.println( "AT+CMGF=1" ); 
+  delay(200);
+  // Tell us we are good to go
+  Serial.println("Starting...");
+}
+
+class Ultrasonic
+{
+	public:
+		Ultrasonic(int pin);
+                void DistanceMeasure(void);
+	        long microsecondsToCentimeters(void);
+	private:
+		int _pin;//pin number of Arduino that is connected with SIG pin of Ultrasonic Ranger.
+                long duration;// the Pulse time received;
+};
+Ultrasonic::Ultrasonic(int pin)
+{
+	_pin = pin;
+}
+/*Begin the detection and get the pulse back signal*/
+void Ultrasonic::DistanceMeasure(void)
+{
+    pinMode(_pin, OUTPUT);
+	digitalWrite(_pin, LOW);
+	delayMicroseconds(2);
+	digitalWrite(_pin, HIGH);
+	delayMicroseconds(5);
+	digitalWrite(_pin,LOW);
+	pinMode(_pin,INPUT);
+	duration = pulseIn(_pin,HIGH);
+}
+/*The measured distance from the range 0 to 400 Centimeters*/
+long Ultrasonic::microsecondsToCentimeters(void)
+{
+	return duration/29/2;	
+}
+
+ 
+Ultrasonic ultrasonic(9);
+
+
+void loop()
+{
+  char SerialInByte;
+  if(GPRS.available())
+  {       
+    SerialInByte = (unsigned char)GPRS.read();
+    delay(5);
+
+    // -------------------------------------------------------------------
+    // Listen to the GPRS shield message.
+    // -------------------------------------------------------------------
+    // If the message ends with <CR> then process the message
+    if( SerialInByte == 13 ){
+      // EN: Store the char into the message buffer
+      ProcessGprsMsg();
+    }
+    if( SerialInByte == 10 ){
+    }
+    else {
+      msg += String(SerialInByte);
+    }
+  }  
+  
+	long grasslength;
+	ultrasonic.DistanceMeasure();// get the current signal time;
+	RangeInCentimeters = ultrasonic.microsecondsToCentimeters();//convert the time to centimeters
+	Serial.println("The distance to obstacles in front is: ");
+	Serial.print(grasslength);//0~400cm
+	Serial.println(" cm");
+	delay(100);
+}
+
+// Fire the HTTP request to get the port status from the server    
+unsigned long currentMillis = millis();
+if(currentMillis - previousMillis > interval) {
+    previousMillis = currentMillis;   
+      Serial.println("Sending HTTP Request...");
+     SendGrass();
+}
+  
+}
+
+// Request Text Mode for SMS messaging
+void GprsTextModeSMS(){
+  GPRS.println( "AT+CMGF=1" );
+}
+
+void GprsReadSmsStore( String SmsStorePos ){
+  GPRS.print( "AT+CMGR=" );
+  GPRS.println( SmsStorePos );
+}
+
+// Clear the GPRS shield message buffer
+void ClearGprsMsg(){
+  msg = "";
+}
+
+// Grab the GPRS shield message and act appropiately
+void ProcessGprsMsg() {
+  if( msg.indexOf( "Call Ready" ) >= 0 ){
+    //  Serial.println( "*** GPRS Shield registered on Mobile Network ***" );
+    GprsTextModeSMS();
+  }
+
+  // Unsolicited message received when getting a SMS message
+  if( msg.indexOf( "+CMTI" ) >= 0 ){
+    //     Look for the coma in the full message (+CMTI: "SM",6)
+    //     In the sample, the SMS is stored at position 6
+    int iPos = msg.indexOf( "," );
+    String SmsStorePos = msg.substring( iPos+1 );
+    GprsReadSmsStore( SmsStorePos );
+  }
+
+  // SMS store read through UART (result of GprsReadSmsStore request)  
+  if( msg.indexOf( "+CMGR:" ) >= 0 ){
+    //  Next message will contains the BODY of SMS
+    SmsContentFlag = 1;
+    //  Following lines are essentiel to not clear the flag!
+    ClearGprsMsg();
+    return;
+  }
+
+  //     +CMGR message just before indicate that the following GRPS Shield message 
+  //     (this message) will contains the SMS body 
+  if( SmsContentFlag == 1 ){
+    //   Serial.println( "*** SMS MESSAGE CONTENT ***" );
+    //   Serial.println( msg );
+    //   Serial.println( "*** END OF SMS MESSAGE ***" );
+    ProcessSms( msg );
+  }
+
+  ClearGprsMsg();
+  // Always clear the flag
+  SmsContentFlag = 0; 
+}
+
+// Make the GPRS connection, send the HTTP Request, get the data back
+// The delays are the give the GPRS shield and network time to do their thing
+void SendGrass( grasslength )
+{
+    
+  GPRS.println("AT+CSQ");
+  delay(200);
+
+  GPRS.println("AT+CGATT?");
+  delay(100);
+// ************************************* THIS IS THE APN
+  GPRS.println("AT+SAPBR=3,1,\"APN\",\"vodafone\"");//setting the APN
+  ShowSerialData();
+  delay(1000);
+
+  GPRS.println("AT+SAPBR=3,1,\"USER\",\"\"");//setting the APN Username (if required)
+  ShowSerialData();
+  delay(1000);
+
+  GPRS.println("AT+SAPBR=3,1,\"PWD\",\"\"");//setting the APN Password (if required)
+  ShowSerialData();
+  delay(1000);
+
+  GPRS.println("AT+SAPBR=1,1");//setting the SAPBR
+  ShowSerialData();
+  delay(3000);
+
+  GPRS.println("AT+HTTPINIT"); //init the HTTP request
+  delay(3000);
+  ShowSerialData();
+
+// ************************************** THIS IS THE API URL 
+  GPRS.println("AT+HTTPPARA=\"URL\",\"http://www.spudooli.com/api/grass/"grasslength"\"");// setting the httppara
+  GPRS.println("");
+  delay(1000);
+  ShowSerialData(); 
+  delay(1000);
+
+  GPRS.println("AT+HTTPACTION=0");//submit the request
+  delay(5000); 
+  ShowSerialData();
+
+  GPRS.println("AT+HTTPREAD");// read the data from the website 
+  delay(300);
+  GPRS.println("");
+  delay(1000); 
+
+       
+  }
+}
+
+void ShowSerialData()
+{
+  while(GPRS.available()!=0)
+    Serial.write(GPRS.read());
+    //GPRS.read();
+}
+
