@@ -10,10 +10,10 @@
 /*****************************************************************************/
 
 #include "Arduino.h"
-include <Ethernet.h>
-// the sensor communicates using SPI, so include the library:
+#include <Ethernet.h>
 #include <SPI.h>
 
+long RangeInCentimeters;
 
 // assign a MAC address for the ethernet controller.
 // fill in your address here:
@@ -48,6 +48,7 @@ Ultrasonic::Ultrasonic(int pin)
 {
 	_pin = pin;
 }
+
 /*Begin the detection and get the pulse back signal*/
 void Ultrasonic::DistanceMeasure(void)
 {
@@ -75,9 +76,6 @@ Ultrasonic ultrasonic(7);
 void setup()
 {
   Serial.begin(9600);
-
-  // start the SPI library:
-  SPI.begin();
 
   // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
