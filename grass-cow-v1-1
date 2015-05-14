@@ -75,19 +75,18 @@ void loop()
   {
         char SerialInByte;
     	int grasslength;
-  	ultrasonic.DistanceMeasure();// get the current signal time;
-  	grasslength = ultrasonic.microsecondsToCentimeters();//convert the time to centimeters
-  	Serial.println("The distance to obstacles in front is: ");
-  	Serial.print(grasslength);//0~400cm
-  	Serial.println(" cm");
-  	delay(100);
-     
+   
 // Fire the HTTP request to get report the grass length to the server    
 
 unsigned long currentMillis = millis();
 
   if(currentMillis - previousMillis > interval) {
       previousMillis = currentMillis;   
+      ultrasonic.DistanceMeasure();// get the current signal time;
+      grasslength = ultrasonic.microsecondsToCentimeters();//convert the time to centimeters
+      Serial.println("The distance to obstacles in front is: ");
+      Serial.print(grasslength);//0~400cm
+      Serial.println(" cm");
       Serial.println("Sending HTTP Request...");
       SendGrass(grasslength);
   }
@@ -110,11 +109,11 @@ void SendGrass(int grasslength)
   ShowSerialData();
   delay(1000);
 
-  GPRS.println("AT+SAPBR=3,1,\"USER\",\web"\"");//setting the APN Username (if required)
+  GPRS.println("AT+SAPBR=3,1,\"USER\",\"web\"");//setting the APN Username (if required)
   ShowSerialData();
   delay(1000);
 
-  GPRS.println("AT+SAPBR=3,1,\"PWD\",\web"\"");//setting the APN Password (if required)
+  GPRS.println("AT+SAPBR=3,1,\"PWD\",\"web\"");//setting the APN Password (if required)
   ShowSerialData();
   delay(1000);
 
@@ -127,7 +126,9 @@ void SendGrass(int grasslength)
   ShowSerialData();
 
 // ************************************** THIS IS THE API URL 
-  GPRS.println("AT+HTTPPARA=\"URL\",\"http://www.spudooli.com/api/grass/\"");// setting the httppara
+  char buffer[250];
+  sprintf(buffer, "AT+HTTPPARA=\"URL\",\"http://www.spudooli.com/api/grass/index.php?grasslength=%s\"", grasslength);
+  GPRS.println(buffer);// setting the httppara
   GPRS.println("");
   delay(1000);
   ShowSerialData(); 
